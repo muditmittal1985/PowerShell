@@ -5,19 +5,16 @@
 ## Pre-Requisites: NA                                                           ##
 ## Version: 1.0                                                                 ##
 ## Modified Date: 20-Oct-2023                                                   ##
-## Reference: https://github.com/damienvanrobaeys/Log_Analytics                 ##
+## Reference: https://github.com/muditmittal1985/PowerShell                     ##
 ##################################################################################
 
-
-https://github.com/damienvanrobaeys/Log_Analytics/tree/main/Part%206%20-%20Creating%20a%20lab%20by%20importing%20a%20CSV%20with%20fake%20data
-
-$Custom_Logs = "Test_CL" # Provide the Custom Table Name
+$Custom_Logs = "Test1_CL" # Provide the Custom Table Name
 $CustomerId = "f21ba7a7-aaeb-453c-869b-2c6aef6b6ff9" # Log Analytics Workspace ID
 $SharedKey = 'nk82EaQg8h4tdU1MAtbgHHg6gzLu4fuwdmyzmlkq9IijcllCaKKSR2yZe+VJoGFDart8P1yyWilnoGxKUYkkyg==' # Log Analytics Workspace Primary Key
 $TimeStampField = ""
 
 
-# Log analytics functions
+# Build PowerShell "Function - Build Signature" for Azure Log Analytics 
 Function Build-Signature ($customerId, $sharedKey, $date, $contentLength, $method, $contentType, $resource)
 {
     $xHeaders = "x-ms-date:" + $date
@@ -35,7 +32,7 @@ Function Build-Signature ($customerId, $sharedKey, $date, $contentLength, $metho
 }
 
 
-# Create the function to create and post the request
+# Build PowerShell "Function - Post Data" to Azure Log Analytics 
 Function Post-LogAnalyticsData($customerId, $sharedKey, $body, $logType)
 {
     $method = "POST"
@@ -65,15 +62,17 @@ Function Post-LogAnalyticsData($customerId, $sharedKey, $body, $logType)
 
 }
 
-$Test_LA_File = "C:\Users\mudit.a.mittal\Downloads\CCBM\Cost-Management\CostManagement_ira0001-azr-093-preprod01_2023-07-12-1715.csv"
-# $Test_LA_CSV = import-csv $Test_LA_File
+*****************************************************************************************************************************************************
+# (Method - 01) Build Script to Import-CSV from Local Disk & Convert to JSON
 
+$Test_LA_File = "C:\Users\mudit.a.mittal\Downloads\CCBM\Cost-Management\CostManagement_ira0001-azr-093-preprod01_2023-07-12-1715.csv"
 $Get_CSV_FirstLine = Get-Content $Test_LA_File | Select -First 1
 $Get_Delimiter = If($Get_CSV_FirstLine.Split(";").Length -gt 1){";"}Else{","};
 $Test_LA_CSV = import-csv $Test_LA_File -Delimiter $Get_Delimiter
 
 $InfoToImport_Json = $Test_LA_CSV | ConvertTo-Json
 
+# Trigger the "Function - Post Data" with converted JSON
 $params = @{
 	CustomerId = $customerId
 	SharedKey  = $sharedKey
@@ -83,17 +82,17 @@ $params = @{
 $LogResponse = Post-LogAnalyticsData @params
 
 *****************************************************************************************************************************************************
+# (Method - 02) Build Script to Import-CSV from Storage Account & Convert to JSON
+
 $storageAccountName = "stirindevizapp0010"
 $container_name = "cpp-daily-cloud-consumption-report"
 $context = New-AzStorageContext -StorageAccountName $storageAccountName -Anonymous
 $blobs = Get-AzStorageBlob -Container $container_name -Context $context | sort @{Expression = "LastModified";Descending=$true}
 $latestBlob = $blobs[0]
-#$local_download_path = "C:\Temp\1"
 $blob_download_path = New-Item -ItemType Directory -Path "C:\Temp\1\$((Get-Date).ToString('dd-MM-yyyy-hh-mm-ss'))"
 
 $download_csv = Get-AzStorageBlobContent -Container $container_name -Context $context -Blob $blobs[0].Name -Destination $blob_download_path
 $abc = Get-ChildItem -Path $blob_download_path.FullName
-
 
 $Get_CSV_Content = Get-Content $abc.FullName | Select -First 1
 $Get_Delimiter = If($Get_CSV_Content.Split(";").Length -gt 1){";"}Else{","};
@@ -101,6 +100,7 @@ $Ready_LA_CSV = Import-Csv $abc.FullName -Delimiter $Get_Delimiter
 
 $InfoToImport_Json = $Ready_LA_CSV | ConvertTo-Json
 
+# Trigger the "Function - Post Data" with converted JSON
 $params = @{
 	CustomerId = $customerId
 	SharedKey  = $sharedKey
@@ -108,7 +108,7 @@ $params = @{
 	LogType    = $Custom_Logs 
 }
 $LogResponse = Post-LogAnalyticsData @params
-
+Write-Host $LogResponse
 
 *****************************************************************************************************************************************************
 
