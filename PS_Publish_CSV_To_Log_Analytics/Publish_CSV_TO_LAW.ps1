@@ -8,7 +8,13 @@
 ## Reference: https://github.com/muditmittal1985/PowerShell                     ##
 ##################################################################################
 
-$Custom_Logs = "Test1_CL" # Provide the Custom Table Name
+<# (Optional) Retrive the log analytics "Customer Id" & "Shared key" from AKV
+$SharedKey = (Get-AzKeyVaultSecret -VaultName "akv-irin-dev-vault-0010" -Name "law-shared-key").SecretValue
+$CustomerId = (Get-AzKeyVaultSecret -VaultName "akv-irin-dev-vault-0010" -Name "law-customer-Id").SecretValue
+#>
+
+
+$Custom_Logs = "Test_CL" # Provide the Custom Table Name
 $CustomerId = "f21ba7a7-aaeb-453c-869b-2c6aef6b6ff9" # Log Analytics Workspace ID
 $SharedKey = 'nk82EaQg8h4tdU1MAtbgHHg6gzLu4fuwdmyzmlkq9IijcllCaKKSR2yZe+VJoGFDart8P1yyWilnoGxKUYkkyg==' # Log Analytics Workspace Primary Key
 $TimeStampField = ""
@@ -41,14 +47,14 @@ Function Post-LogAnalyticsData($customerId, $sharedKey, $body, $logType)
     $rfc1123date = [DateTime]::UtcNow.ToString("r")
     $contentLength = $body.Length
     $signature = Build-Signature `
-        -customerId $customerId `
-        -sharedKey $sharedKey `
+        -customerId $CustomerId `
+        -sharedKey $SharedKey `
         -date $rfc1123date `
         -contentLength $contentLength `
         -method $method `
         -contentType $contentType `
         -resource $resource
-    $uri = "https://" + $customerId + ".ods.opinsights.azure.com" + $resource + "?api-version=2016-04-01"
+    $uri = "https://" + $CustomerId + ".ods.opinsights.azure.com" + $resource + "?api-version=2016-04-01"
 
     $headers = @{
         "Authorization" = $signature;
@@ -102,8 +108,8 @@ $InfoToImport_Json = $Ready_LA_CSV | ConvertTo-Json
 
 # Trigger the "Function - Post Data" with converted JSON
 $params = @{
-	CustomerId = $customerId
-	SharedKey  = $sharedKey
+	CustomerId = $CustomerId
+	SharedKey  = $SharedKey
 	Body       = ([System.Text.Encoding]::UTF8.GetBytes($InfoToImport_Json))
 	LogType    = $Custom_Logs 
 }
